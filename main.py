@@ -15,19 +15,23 @@ def Merge_Orig_Perf(df_orig, df_perf):
 	df_merged.sort_values(by=['loan_seq_number', 'loan_age'], ascending=[True,True], 
 						inplace=True)
 	df_merged.fillna(np.nan, inplace=True)
-	df_merged.to_csv('freddie_merged.csv', index=False)
+	#df_merged.to_csv('freddie_merged.csv', index=False)
 
 	return df_merged
 
-def Remove_Missing_Principal_Bonds(df):
+def Remove_Missing_Principal_Bonds(df_merged, df_orig):
 	"""
 		Bonds who were missing current principal balance midway through.
 	"""
-	df.set_index('loan_seq_number', inplace=True)
-	df.drop(df[df['current_actual_upb'] == 'nan'].index, inplace=True)
-	df.reset_index(level=0, inplace=True)	# reset 'loan_seq_number' to column
+	df_merged.set_index('loan_seq_number', inplace=True)
+	df_orig.set_index('loan_seq_number', inplace=True)
+	index_to_drop = df_merged[df_merged['current_actual_upb'] == 'nan'].index
+	df_merged.drop(index_to_drop, inplace=True)
+	df_orig.drop(index_to_drop, inplace=True)
+	df_merged.reset_index(level=0, inplace=True)	# reset 'loan_seq_number' to column
+	df_orig.reset_index(level=0, inplace=True)	# reset 'loan_seq_number' to column
 
-	return df
+	return df_merged, df_orig
 
 def Create_Pay_Cols(df_mtx):
 	"""
@@ -63,28 +67,51 @@ def Create_Pay_Cols(df_mtx):
 
 	return df_new_mtx, cols_added
 
-if __name__ == '__main__':
+def Calc_Prepay_Percent(df, df_orig):
+	"""
+		Group performance data by 'loan_seq_number'.
+		Take sum of all prepayments, including negative prepayemnts.
+		Divide original loan amount by sum of prepayments to get prepayment %.
+	"""
+	grouped = df.groupby('loan_seq_number')
+	prepay_percent_arr = []
 
+	for name, group in grouped:
+		prepay_percent_arr.append(
+			[name, group['Prepayment Paid'].sum() / group['current_actual_upb'].max()])
+
+	prepay_percent_arr = np.array(prepay_percent_arr)
+	df_orig['Prepay Percent'] = prepay_percent_arr[:,1]
+
+	return df_orig
+
+if __name__ == '__main__':
 	df_orig = pd.read_csv('freddie_origination_sample.csv')
 	df_perf = pd.read_csv('freddie_performance_sample.csv')
 
+	### Working of Performance File ################
 	df_merged = Merge_Orig_Perf(df_orig, df_perf)
 
 	#df_merged = pd.read_csv('freddie_merged.csv')
 	df_merged.fillna('nan', inplace=True)
 
-	df = Remove_Missing_Principal_Bonds(df_merged)
+	df_merged, df_orig = Remove_Missing_Principal_Bonds(df_merged, df_orig)
 
 	cols = list(df_merged.columns)
 	df_mtx = np.array(df_merged)
 
 	df_mtx, cols_added = Create_Pay_Cols(df_mtx)
-	all_cols = cols + cols_added
-
+	all_cols = cols + cols_added	# cols_added is 'prepay paid', 'interest paid', etc..
 	df = pd.DataFrame(df_mtx, columns=all_cols)
+	###############################################
 
-	df.to_csv('freddie_final.csv', index=False)
+	### Working on original data ##################
+	df_orig = Calc_Prepay_Percent(df, df_orig)
 
-	# 'original_upb' = unpiad principal balance at note date
 	# divide by 100 because 'original_ltv' percent, not decimal
-	#df_orig['Home Price'] = df_orig['original_upb'] / (df_orig['original_ltv'] / 100.0)
+	df_orig['Home Price'] = df_orig['original_upb'] / (df_orig['original_ltv'] / 100.0)
+
+	df_orig.to_csv('freddie_final.csv', index=False)
+	###################################
+
+	### 'freddie_final.csv' has prepayment percent and home price
