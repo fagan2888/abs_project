@@ -31,10 +31,10 @@ def variable_dist(loan_df, target_variable, models_to_plot):
 
 
 ### Ridge regression
-def ridge_regression(data, predictors, alpha, models_to_plot={}):
+def ridge_regression(data, y, predictors, alpha, models_to_plot={}):
     #Fit the model
     ridgereg = Ridge(alpha=alpha,normalize=True)
-    ridgereg.fit(data[predictors],data['Prepay Percent'])
+    ridgereg.fit(data[predictors],data[y])
     y_pred = ridgereg.predict(data[predictors])
     
     #Check if a plot is to be made for the entered alpha
@@ -42,11 +42,11 @@ def ridge_regression(data, predictors, alpha, models_to_plot={}):
         plt.subplot(models_to_plot[alpha])
         plt.tight_layout()
         plt.plot(data['original_combined_ltv'],y_pred,'ro')
-        plt.plot(data['original_combined_ltv'],data['Prepay Percent'],'.')
+        plt.plot(data['original_combined_ltv'],data[y],'.')
         plt.title('Plot for alpha: %.3g'%alpha)
     
     #Return the result in pre-defined format
-    rss = sum((y_pred-data['Prepay Percent'])**2)
+    rss = sum((y_pred-data[y])**2)
     ret = [rss]
     ret.extend([ridgereg.intercept_])
     ret.extend(ridgereg.coef_)
@@ -57,10 +57,10 @@ def ridge_regression(data, predictors, alpha, models_to_plot={}):
 
 ### Lasso Regression
 
-def lasso_regression(data, predictors, alpha, models_to_plot={}):
+def lasso_regression(data, y, predictors, alpha, models_to_plot={}):
     #Fit the model
     lassoreg = Lasso(alpha=alpha,normalize=True, max_iter=1e5)
-    lassoreg.fit(data[predictors],data['Prepay Percent'])
+    lassoreg.fit(data[predictors],data[y])
     y_pred = lassoreg.predict(data[predictors])
     
     #Check if a plot is to be made for the entered alpha
@@ -68,11 +68,11 @@ def lasso_regression(data, predictors, alpha, models_to_plot={}):
         plt.subplot(models_to_plot[alpha])
         plt.tight_layout()
         plt.plot(data['original_combined_ltv'],y_pred,'ro')
-        plt.plot(data['original_combined_ltv'],data['Prepay Percent'],'.')
+        plt.plot(data['original_combined_ltv'],data[y],'.')
         plt.title('Plot for alpha: %.3g'%alpha)
     
     #Return the result in pre-defined format
-    rss = sum((y_pred-data['Prepay Percent'])**2)
+    rss = sum((y_pred-data[y])**2)
     ret = [rss]
     ret.extend([lassoreg.intercept_])
     ret.extend(lassoreg.coef_)
