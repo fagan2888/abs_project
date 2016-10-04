@@ -6,8 +6,9 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 
 if __name__ == '__main__':
-	df_orig = pd.read_csv('freddie_origination_head_sample_2.csv')
-	df_perf = pd.read_csv('freddie_performance_head_sample_2.csv')
+	data_file_path = r'C:\Users\Alex\Desktop\abs_data\\'
+	df_orig = pd.read_csv(data_file_path + 'freddie_origination_head_sample.csv')
+	df_perf = pd.read_csv(data_file_path + 'freddie_performance_head_sample.csv')
 
 	### Working of Performance File ################
 	df_merged = c.Merge_Orig_Perf(df_orig, df_perf)
