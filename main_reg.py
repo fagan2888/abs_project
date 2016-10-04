@@ -5,7 +5,6 @@ Created on Sat Oct  1 15:37:58 2016
 @author: Chandler
 """
 import os
-os.chdir('C:/Users/Chandler/Desktop/Berkeley/2016 Fall/230M ABS/abs_project')
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,10 +16,14 @@ from sklearn import tree
 import regression as r
 import random
 
+data_file_path = r'C:\Users\Alex\Desktop\abs_data\\' # modify to own path
 
-
-loan_df = pd.read_csv('C:/Users/Chandler/Desktop/Berkeley/2016 Fall/230M ABS/abs_project/freddie_final_2.csv')
-loan_df = loan_df[['loan_seq_number','Prepay Percent','mortgage_insurance_percentage','original_loan_term','credit_score','first_time_homebuyer_flag','original_combined_ltv','original_upb','original_ltv','original_interest_rate','prepayment_penalty_flag','number_of_borrowers','Home Price']]
+loan_df = pd.read_csv(data_file_path + 'freddie_final.csv')
+loan_df = loan_df[['loan_seq_number','Prepay Percent','mortgage_insurance_percentage',
+                   'original_loan_term','credit_score','first_time_homebuyer_flag',
+                   'original_combined_ltv','original_upb','original_ltv',
+                   'original_interest_rate','prepayment_penalty_flag',
+                   'number_of_borrowers','Home Price']]
 
 # Drop all NAs
 loan_df = pd.DataFrame.dropna(loan_df)
