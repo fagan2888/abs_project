@@ -38,5 +38,5 @@ if __name__ == '__main__':
 	df_orig['Home Price'] = df_orig['original_upb'] / (df_orig['original_ltv'] / 100.0)
 	# Change the format of ltv, dummy variable
 	df_orig = c.Revise_format(df_orig)
-	df_orig.to_csv(path + r'\freddie_final_2.csv', index=False)
+	df_orig.to_csv(path + r'\freddie_final.csv', index=False)
 
