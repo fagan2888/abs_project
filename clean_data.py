@@ -60,7 +60,8 @@ def Create_Pay_Cols(df_mtx):
 
 	for i in range(df_mtx.shape[0]):
 		if df_mtx[i, 5] == 'nan':	# remaining_months_to_maturity
-			df_mtx[i, 5] = int(df_mtx[i+1, 5]) + 1	# fill in original r_m_t_m
+			#df_mtx[i, 5] = int(df_mtx[i+1, 5]) + 1	# fill in original r_m_t_m
+			pass
 		else:
 			int_pay_arr[i] = df_mtx[i-1, 1] * df_mtx[i, 2]	# 'interest_paid' column
 			amort_pay_arr[i] = (-1)*np.pmt(df_mtx[i, 2], df_mtx[i, 5], df_mtx[i-1, 1])
