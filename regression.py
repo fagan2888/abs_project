@@ -7,9 +7,10 @@ Created on Fri Sep 30 19:00:36 2016
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
-
+from sklearn.linear_model import LogisticRegression
 
 def variable_dist(loan_df, target_variable, models_to_plot):
     for i in range(len(models_to_plot)):
@@ -28,6 +29,28 @@ def variable_dist(loan_df, target_variable, models_to_plot):
     return loan_df
 
 
+### Logistic regression ###
+
+def logistic_regression(penalty, data, y, predictors, alpha, models_to_plot={}):
+    #Fit the model
+    logreg = LogisticRegression(penalty = penalty, C=alpha)
+    logreg.fit(data[predictors],data[y])
+    y_pred = logreg.predict(data[predictors])
+    
+    #Check if a plot is to be made for the entered alpha
+    if alpha in models_to_plot:
+        plt.subplot(models_to_plot[alpha])
+        plt.tight_layout()
+        plt.plot(data['original_combined_ltv'],y_pred,'ro')
+        plt.plot(data['original_combined_ltv'],data[y],'.')
+        plt.title('Plot for alpha: %.3g'%alpha)
+    
+    #Return the result in pre-defined format
+    rss = sum((y_pred-data[y])**2)
+    ret = [rss]
+    ret.extend(np.append(logreg.intercept_,logreg.coef_))
+    #ret.extend(logreg.coef_)
+    return ret    
 
 
 ### Ridge regression

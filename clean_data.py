@@ -100,5 +100,5 @@ def Revise_format(df_orig):
     df_orig['original_combined_ltv'] = df_orig['original_combined_ltv']/100
     df_orig['original_interest_rate'] = df_orig['original_interest_rate']/100
     df_orig['original_ltv'] = df_orig['original_ltv']/100
-    
+    df_orig['mortgage_insurance_percentage'] = df_orig['mortgage_insurance_percentage']/100
     return df_orig
