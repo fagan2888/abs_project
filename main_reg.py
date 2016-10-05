@@ -16,6 +16,7 @@ from sklearn import tree
 import regression as r
 import random
 import scipy.optimize as spo
+pd.options.mode.chained_assignment = None  # default='warn'
 
 def Add_Prepay_Col_Identifiers(loan_df_train, loan_df_test):
     ### Add prepayment column to show wether there is prepayment or not
@@ -27,33 +28,6 @@ def Add_Prepay_Col_Identifiers(loan_df_train, loan_df_test):
     loan_df_test['big_Prepayment'] = 1*(loan_df_test['Prepay Percent']>0.8)
 
     return loan_df_train, loan_df_test
-
-def decision_tree(df_train, df_test, predictors, method, y, y_pred):
-    #Assumed you have, X (predictor) and Y (target) for training data set and x_test(predictor) of test_dataset
-    # Create tree object 
-    model = tree.DecisionTreeClassifier(criterion = method) # for classification, here you can change the algorithm as gini or entropy (information gain) by default it is gini  
-    # model = tree.DecisionTreeRegressor() for regression
-    # Train the model using the training sets and check score
-    model.fit(df_train[predictors], df_train[y])
-    model.score(df_train[predictors], df_train[y])
-    #Predict Output
-    predicted = model.predict(df_test[predictors])
-    df_test[y_pred] = predicted
-    
-    # Calculate the accuracy
-    accuracy = sum(df_test[y_pred] == df_test[y])/len(df_test[y_pred])
-    TN = sum(df_test[y_pred][df_test[y_pred] ==0] == df_test[y][df_test[y_pred] ==0] )/len(df_test[y_pred][df_test[y_pred] ==0])
-    FN = sum(df_test[y_pred][df_test[y_pred] ==0] != df_test[y][df_test[y_pred] ==0] )/len(df_test[y_pred][df_test[y_pred] ==0])
-    
-    TP = sum(df_test[y_pred][df_test[y_pred] ==1] == df_test[y][df_test[y_pred] ==1] )/len(df_test[y_pred][df_test[y_pred] ==1])
-    FP = sum(df_test[y_pred][df_test[y_pred] ==1] != df_test[y][df_test[y_pred] ==1] )/len(df_test[y_pred][df_test[y_pred] ==1])
-    """print('[Decision Tree Result] Accuracy for judging %s or not is %s' %(y,accuracy))
-    print('[Decision Tree Result]  True Negative (Predict no prepayment and no prepayment) for given no %s judgement is %s' %(y,TN))
-    print('[Decision Tree Result]  False Negative (Predict prepayment but no prepayment) for given no %s judgement is %s' %(y,FN))
-    print('[Decision Tree Result]  True Positive (Predict prepayment and has prepayment) for given no %s judgement is %s' %(y,TP))
-    print('[Decision Tree Result]  False Positive (Predict no prepayment but has prepayment) for given no %s judgement is %s' %(y,FP))
-    print('\n')"""
-    return df_test
         
 def Logistic_Optimizer(alpha, penalty, df_train, df_test, y, y_pred, predictors):
     """
@@ -229,34 +203,21 @@ def RL_Optimizer(loan_df_train, loan_df_test, predictors, alpha_train, func, opt
     return ridge_cols
 
 def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictors_log):
-    ####### Ridge ############
     alpha_ridge_train = np.random.random(20)
-    ridge_cols = RL_Optimizer(loan_df_train, loan_df_test, predictors, alpha_ridge_train,
+    new_predictors_ridge = RL_Optimizer(loan_df_train, loan_df_test, predictors, alpha_ridge_train,
                                 r.RL_regression, r.RL_optimizer, Ridge)
 
-    print ('Ridge columns: ')
-    for col in ridge_cols:
-        print (col)
-    ###########################
-
-    ####### Lasso ############
     alpha_lasso_train = [1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4]
-    lasso_cols = RL_Optimizer(loan_df_train, loan_df_test, predictors, alpha_lasso_train,
+    new_predictors_lasso = RL_Optimizer(loan_df_train, loan_df_test, predictors, alpha_lasso_train,
                                 r.RL_regression, r.RL_optimizer, Lasso)
-
-    print ('\nLasso columns: ')
-    for col in lasso_cols:
-        print (col)    
-    ##########################
 
     # Calculate the Accuracy
     print('####### Two Step Logistic + Decision Tree #######')
-    decision_tree(loan_df_train, loan_df_test, new_predictors_log, 'gini', 'big_Prepayment', 
-                 'Pred_big_prepayment_log') 
+    df_test = r.decision_tree(loan_df_train, loan_df_test, new_predictors_log, 'gini', 
+                             'big_Prepayment', 'Pred_big_prepayment_log') 
 
     # Generate testing dataset which doesn't have big prepayment according to algo_1_ridge
     loan_df_test_small_log = loan_df_test[loan_df_test['Pred_big_prepayment_log'] == 0]
-
 
     ############ Decision Tree_2 for finding low prepayment rate loan among the group with <80% 
     ############ prepayment percent using ridge regression result ############
@@ -264,17 +225,15 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
     loan_df_train_small = loan_df_train[loan_df_train['Prepay Percent']<0.8]
 
     # Calculate the Accuracy
-    decision_tree(loan_df_train_small, loan_df_test_small_log, new_predictors_log, 'gini', 
+    r.decision_tree(loan_df_train_small, loan_df_test_small_log, new_predictors_log, 'gini', 
                  'Prepayment', 'Pred_prepayment_ridge') 
      
      
     ############ Decision Tree_1 for divide higher than 80% and less then 80% using ridge 
     ############ regression result ############
-    new_predictors_ridge = ['mortgage_insurance_percentage','original_combined_ltv','original_ltv',
-                            'original_interest_rate','prepayment_penalty_flag','number_of_borrowers']
     # Calculate the Accuracy
     print('####### Two Step Ridge + Decision Tree #######')
-    decision_tree(loan_df_train, loan_df_test, new_predictors_ridge, 'gini', 'big_Prepayment', 
+    r.decision_tree(loan_df_train, loan_df_test, new_predictors_ridge, 'gini', 'big_Prepayment', 
                   'Pred_big_prepayment_ridge') 
 
     # Generate testing dataset which doesn't have big prepayment according to algo_1_ridge
@@ -287,18 +246,16 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
     loan_df_train_small = loan_df_train[loan_df_train['Prepay Percent']<0.8]
 
     # Calculate the Accuracy
-    decision_tree(loan_df_train_small, loan_df_test_small_ridge, new_predictors_ridge, 'gini', 
+    r.decision_tree(loan_df_train_small, loan_df_test_small_ridge, new_predictors_ridge, 'gini', 
                  'Prepayment', 'Pred_prepayment_ridge')
 
 
 
     ############ Decision Tree_1 for divide higher than 80% and less then 80% using lasso 
     ############ regression result ############
-    new_predictors_lasso = ['mortgage_insurance_percentage','original_ltv','original_interest_rate',
-                            'prepayment_penalty_flag','number_of_borrowers']
     # Calculate the Accuracy
     print('####### Two Step Lasso + Decision Tree #######')
-    decision_tree(loan_df_train, loan_df_test, new_predictors_lasso, 'gini', 'big_Prepayment', 
+    r.decision_tree(loan_df_train, loan_df_test, new_predictors_lasso, 'gini', 'big_Prepayment', 
                   'Pred_big_prepayment_lasso') 
 
     # Generate testing dataset which doesn't have big prepayment according to algo_1_ridge
@@ -310,7 +267,7 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
     loan_df_train_small = loan_df_train[loan_df_train['Prepay Percent']<0.8]
 
     # Calculate the Accuracy
-    decision_tree(loan_df_train_small, loan_df_test_small_lasso, new_predictors_lasso, 'gini', 
+    r.decision_tree(loan_df_train_small, loan_df_test_small_lasso, new_predictors_lasso, 'gini', 
                   'Prepayment', 'Pred_prepayment_ridge')
 
     ############ Logistic regression for predicting low prepayment or high prepayment 5% 

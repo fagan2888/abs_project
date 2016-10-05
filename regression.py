@@ -11,6 +11,7 @@ import numpy as np
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
 from sklearn.linear_model import LogisticRegression
+from sklearn import tree
 
 def variable_dist(loan_df, target_variable, models_to_plot):
     for i in range(len(models_to_plot)):
@@ -27,9 +28,6 @@ def variable_dist(loan_df, target_variable, models_to_plot):
             plt.xlabel(target_variable[i])
             plt.ylabel('Frequency')
     return loan_df
-
-
-### Logistic regression ###
 
 def logistic_regression(penalty, data, y, predictors, alpha):
     #Fit the model
@@ -60,7 +58,6 @@ def RL_optimizer(alpha, data, y, predictors, func):
     rss = sum((y_pred-data[y])**2)
     return rss
 
-### Ridge regression
 def RL_regression(data, y, predictors, alpha, func):
     # func = Ridge or Lasso
     #Fit the model
@@ -85,3 +82,41 @@ def RL_regression(data, y, predictors, alpha, func):
     ret = rl_reg.coef_
 
     return ret, rss
+
+
+def decision_tree(df_train, df_test, predictors, method, y, y_pred):
+    # Assumed you have, X (predictor) and Y (target) for training data set and 
+    # x_test(predictor) of test_dataset
+
+    # Create tree object 
+    model = tree.DecisionTreeClassifier(criterion = method) 
+    # model = tree.DecisionTreeRegressor() for regression
+    # Train the model using the training sets and check score
+    model.fit(df_train[predictors], df_train[y])
+    model.score(df_train[predictors], df_train[y])
+    #Predict Output
+    predicted = model.predict(df_test[predictors])
+    df_test[y_pred] = predicted
+    
+    # Calculate the accuracy
+    accuracy = sum(df_test[y_pred] == df_test[y])/len(df_test[y_pred])
+    TN = sum(df_test[y_pred][df_test[y_pred] ==0] == df_test[y][df_test[y_pred] ==0] )/\
+        len(df_test[y_pred][df_test[y_pred] ==0])
+    FN = sum(df_test[y_pred][df_test[y_pred] ==0] != df_test[y][df_test[y_pred] ==0] )/\
+        len(df_test[y_pred][df_test[y_pred] ==0])
+    
+    TP = sum(df_test[y_pred][df_test[y_pred] ==1] == df_test[y][df_test[y_pred] ==1] )/\
+        len(df_test[y_pred][df_test[y_pred] ==1])
+    FP = sum(df_test[y_pred][df_test[y_pred] ==1] != df_test[y][df_test[y_pred] ==1] )/\
+        len(df_test[y_pred][df_test[y_pred] ==1])
+    """print('[Decision Tree Result] Accuracy for judging %s or not is %s' %(y,accuracy))
+    print('[Decision Tree Result]  True Negative (Predict no prepayment and no prepayment) for \
+            given no %s judgement is %s' %(y,TN))
+    print('[Decision Tree Result]  False Negative (Predict prepayment but no prepayment) for \ 
+            given no %s judgement is %s' %(y,FN))
+    print('[Decision Tree Result]  True Positive (Predict prepayment and has prepayment) for \
+            given no %s judgement is %s' %(y,TP))
+    print('[Decision Tree Result]  False Positive (Predict no prepayment but has prepayment) \
+            for given no %s judgement is %s' %(y,FP))
+    print('\n')"""
+    return df_test
