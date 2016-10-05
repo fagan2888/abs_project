@@ -107,7 +107,6 @@ def Logistic_Prediction(alpha, penalty, df_train, df_test, y, y_pred, predictors
     except:
         #TN  = 'NaN'
         TN = -1
-        print 
     try: 
         FN = sum(df_test[y_pred][df_test[y_pred] ==0] != df_test[y][df_test[y_pred] ==0] )/\
             len(df_test[y_pred][df_test[y_pred] ==0])
@@ -201,31 +200,18 @@ def Lasso_Optimizer(loan_df_train, predictors):
     return result.x     # optimal alpha
 
 def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictors_log):
-    #Set the different values of alpha to be tested
-    C = [1e-4, 1e-3, 5e-2, 1e-2, 0.05, 0.1, 0.5, 1, 2, 5]
-
-    #Initialize the dataframe for storing coefficients.
-    # 
-    col = ['rss','intercept'] + ['coef_x_%d'%i for i in range(1,12)]
-    ind = ['alpha_%.2g'%C[i] for i in range(0,10)]
-    coef_matrix_log = pd.DataFrame(index=ind, columns=col)
-
-    # keys = alpha values
-    # values = subplot increments
-    models_to_plot = {1e-15:231, 1e-10:232, 1e-4:233, 1e-3:234, 1e-2:235, 5:236}
-    for i in range(10):
-        coef_matrix_log.iloc[i,] = r.logistic_regression('l1', loan_df_train, 'Prepayment', 
-                                                          predictors, C[i], models_to_plot)
-        
-
+    ####### Ridge ############
     alpha_ridge = Ridge_Optimizer(loan_df_train, predictors)
     ridge_result = r.ridge_regression(loan_df_train, 'Prepay Percent', predictors, 
                                       alpha_ridge)
-    
+    ###########################
+
+    ####### Lasso ############
     alpha_lasso = Lasso_Optimizer(loan_df_train, predictors)
     lasso_result = r.lasso_regression(loan_df_train, 'Prepay Percent', predictors, 
                                       alpha_lasso)
-        
+    ##########################
+
     # Calculate the Accuracy
     print('####### Two Step Logistic + Decision Tree #######')
     decision_tree(loan_df_train, loan_df_test, new_predictors_log, 'gini', 'big_Prepayment', 
@@ -242,8 +228,6 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
     # Calculate the Accuracy
     decision_tree(loan_df_train_small, loan_df_test_small_log, new_predictors_log, 'gini', 
                  'Prepayment', 'Pred_prepayment_ridge') 
-     
-     
      
      
     ############ Decision Tree_1 for divide higher than 80% and less then 80% using ridge regression result ############
@@ -292,11 +276,15 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
                         'original_ltv','prepayment_penalty_flag','number_of_borrowers']
     # Calculate the Accuracy
 
+    ###### Logistic ##############
     alpha_logistic = Optimize_Logistic(loan_df_train, loan_df_test, new_predictors_log)
 
     Logistic_Prediction(alpha_logistic, 'l1',loan_df_train, loan_df_test, 'Prepayment', 
                            'Pred_Prepayment_log', new_predictors_log)
 
+    logistic_result = r.logistic_regression('l1', loan_df_train, 'Prepayment', 
+                                            predictors, alpha_logistic)
+    ############################
 
 if __name__=="__main__":
     data_file_path = r'C:\Users\Alex\Desktop\abs_data\\' # modify to own path
