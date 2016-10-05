@@ -166,50 +166,87 @@ def Optimize_Logistic(loan_df_train, loan_df_test, new_predictors_log):
     print ('Best result: ', max_result, '\nalpha:', alpha_best)
     return alpha_best
 
-def Ridge_Optimizer(loan_df_train, predictors):
+def RL_Test_Set(loan_df_train, loan_df_test, predictors, alpha_train, func, regress_func):
     """ 
+        regress_func = Lasso and Ridge.
+        func = r.RL_regression.
+
+        Get subset of cols for ridge regressions for initial alphas.
+        Set tolerance of not including column to less than 1e-4.
+    """
+    cols = []
+    df_regress = pd.DataFrame(index=alpha_train, columns=predictors)
+
+    # get results of logistic regression over range of alphas
+    for alpha in alpha_train:
+        # func = r.RL_regression
+        result, rss = func(loan_df_train, 'Prepay Percent', predictors, alpha, regress_func)
+
+        df_regress.ix[alpha] = result
+
+    df_regress[df_regress < 1e-4] = 0   # values < 1e^-4 = zero : threshold for ridge
+
+    return df_regress
+
+def RL_Optimizer(loan_df_train, loan_df_test, predictors, alpha_train, func, optimize_func, 
+                 regress_func):
+    """ 
+        Lasso and Ridge.
+        First get number of columns to consider over a range of alphas using train set.
+        Using the columns selected for each alpha, minimize rss over test set.
         Minimize the squared errors of ridge regression by finding the optimal alpha.
         Return the optimal alpha.
     """
-    alpha_guess = np.random.random()
+    df_regress = RL_Test_Set(loan_df_train, loan_df_test, predictors, alpha_train, func, regress_func)
+    
+    # optimization initial parameters
+    optimal_alpha = 0
+    ridge_cols = []     # optimal subset of cols to return
+    min_rss = np.Inf
     bnds = ((0, None),)
 
-    result = spo.minimize(r.ridge_regression_optimizer, alpha_guess, 
-                     args=(loan_df_train, 'Prepay Percent', 
-                           predictors),
-                     bounds=bnds,
-                     method='SLSQP', 
-                     tol=10e-5)
+    for alpha, row in df_regress.iterrows():
+        # Get index of all nonzeo columns from row of logistic reg dataframe
+        # Select subset of loan_df_test from index
+        for i in range(len(row)):
+            idx = [idx for idx in range(len(row)) if row[idx] > 0]  # select nonzero indexes
+            test_predictors = loan_df_test[predictors].columns[idx] # get nonzero idx columns
 
-    return result.x     # optimal alpha
+        result = spo.minimize(optimize_func, alpha, 
+                         args=(loan_df_test, 'Prepay Percent', 
+                               test_predictors, regress_func),
+                         bounds=bnds,
+                         method='SLSQP', 
+                         tol=10e-5)
 
-def Lasso_Optimizer(loan_df_train, predictors):
-    """ 
-        Minimize the squared errors of lasso regression by finding the optimal alpha.
-        Return the optimal alpha.
-    """
-    alpha_guess = np.random.random()
-    bnds = ((0, None),)
+        # Select min rss over test set
+        if (result.fun < min_rss):
+            min_rss = result.fun
+            optimal_alpha = alpha
+            ridge_cols = test_predictors
 
-    result = spo.minimize(r.lasso_optimizer, alpha_guess, 
-                        args=(loan_df_train, 'Prepay Percent', predictors),
-                        bounds=bnds,
-                        method='SLSQP', 
-                        tol=10e-5)
-
-    return result.x     # optimal alpha
+    #print (optimal_alpha, min_rss, ridge_cols)
+    return ridge_cols
 
 def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictors_log):
     ####### Ridge ############
-    alpha_ridge = Ridge_Optimizer(loan_df_train, predictors)
-    ridge_result = r.ridge_regression(loan_df_train, 'Prepay Percent', predictors, 
-                                      alpha_ridge)
+    alpha_ridge_train = np.random.random(20)
+    ridge_cols = RL_Optimizer(loan_df_train, loan_df_test, predictors, alpha_ridge_train,
+                                r.RL_regression, r.RL_optimizer, Ridge)
+
+    print ('Ridge columns: ')
+    for col in ridge_cols:
+        print (col)
     ###########################
 
     ####### Lasso ############
-    alpha_lasso = Lasso_Optimizer(loan_df_train, predictors)
-    lasso_result = r.lasso_regression(loan_df_train, 'Prepay Percent', predictors, 
-                                      alpha_lasso)
+    alpha_lasso_train = [1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4]
+    lasso_cols = RL_Optimizer(loan_df_train, loan_df_test, predictors, alpha_lasso_train,
+                                r.RL_regression, r.RL_optimizer, Lasso)
+
+    print ('\nLasso columns: ')
+    for col in lasso_cols:
+        print (col)    
     ##########################
 
     # Calculate the Accuracy
@@ -221,7 +258,8 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
     loan_df_test_small_log = loan_df_test[loan_df_test['Pred_big_prepayment_log'] == 0]
 
 
-    ############ Decision Tree_2 for finding low prepayment rate loan among the group with <80% prepayment percent using ridge regression result ############
+    ############ Decision Tree_2 for finding low prepayment rate loan among the group with <80% 
+    ############ prepayment percent using ridge regression result ############
     ### Filter out the prepay percent only with <80% and develop algo_2
     loan_df_train_small = loan_df_train[loan_df_train['Prepay Percent']<0.8]
 
@@ -230,7 +268,8 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
                  'Prepayment', 'Pred_prepayment_ridge') 
      
      
-    ############ Decision Tree_1 for divide higher than 80% and less then 80% using ridge regression result ############
+    ############ Decision Tree_1 for divide higher than 80% and less then 80% using ridge 
+    ############ regression result ############
     new_predictors_ridge = ['mortgage_insurance_percentage','original_combined_ltv','original_ltv',
                             'original_interest_rate','prepayment_penalty_flag','number_of_borrowers']
     # Calculate the Accuracy
@@ -242,7 +281,8 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
     loan_df_test_small_ridge = loan_df_test[loan_df_test['Pred_big_prepayment_ridge'] == 0]
 
 
-    ############ Decision Tree_2 for finding low prepayment rate loan among the group with <80% prepayment percent using ridge regression result ############
+    ############ Decision Tree_2 for finding low prepayment rate loan among the group with 
+    ############ <80% prepayment percent using ridge regression result ############
     ### Filter out the prepay percent only with <80% and develop algo_2
     loan_df_train_small = loan_df_train[loan_df_train['Prepay Percent']<0.8]
 
@@ -252,7 +292,8 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
 
 
 
-    ############ Decision Tree_1 for divide higher than 80% and less then 80% using lasso regression result ############
+    ############ Decision Tree_1 for divide higher than 80% and less then 80% using lasso 
+    ############ regression result ############
     new_predictors_lasso = ['mortgage_insurance_percentage','original_ltv','original_interest_rate',
                             'prepayment_penalty_flag','number_of_borrowers']
     # Calculate the Accuracy
@@ -263,7 +304,8 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
     # Generate testing dataset which doesn't have big prepayment according to algo_1_ridge
     loan_df_test_small_lasso = loan_df_test[loan_df_test['Pred_big_prepayment_lasso'] == 0]
 
-    ############ Decision Tree_2 for finding low prepayment rate loan among the group with <80% prepayment percent using lasso regression result ############
+    ############ Decision Tree_2 for finding low prepayment rate loan among the group with 
+    ############ <80% prepayment percent using lasso regression result ############
     ### Filter out the prepay percent only with <80% and develop algo_2
     loan_df_train_small = loan_df_train[loan_df_train['Prepay Percent']<0.8]
 
@@ -271,7 +313,8 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictor
     decision_tree(loan_df_train_small, loan_df_test_small_lasso, new_predictors_lasso, 'gini', 
                   'Prepayment', 'Pred_prepayment_ridge')
 
-    ############ Logistic regression for predicting low prepayment or high prepayment 5% benchmark ############
+    ############ Logistic regression for predicting low prepayment or high prepayment 5% 
+    ############ benchmark ############
     new_predictors_log = ['mortgage_insurance_percentage','original_loan_term','credit_score',
                         'original_ltv','prepayment_penalty_flag','number_of_borrowers']
     # Calculate the Accuracy
@@ -329,8 +372,6 @@ if __name__=="__main__":
     loan_df_train, loan_df_test = Add_Prepay_Col_Identifiers(loan_df_train, loan_df_test)
 
     rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictors_log)
-
-
 
 
 
