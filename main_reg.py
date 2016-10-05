@@ -15,6 +15,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn import tree
 import regression as r
 import random
+import scipy.optimize as spo
 
 def Add_Prepay_Col_Identifiers(loan_df_train, loan_df_test):
     ### Add prepayment column to show wether there is prepayment or not
@@ -46,17 +47,16 @@ def decision_tree(df_train, df_test, predictors, method, y, y_pred):
         
         TP = sum(df_test[y_pred][df_test[y_pred] ==1] == df_test[y][df_test[y_pred] ==1] )/len(df_test[y_pred][df_test[y_pred] ==1])
         FP = sum(df_test[y_pred][df_test[y_pred] ==1] != df_test[y][df_test[y_pred] ==1] )/len(df_test[y_pred][df_test[y_pred] ==1])
-        print('[Decision Tree Result] Accuracy for judging %s or not is %s' %(y,accuracy))
+        """print('[Decision Tree Result] Accuracy for judging %s or not is %s' %(y,accuracy))
         print('[Decision Tree Result]  True Negative (Predict no prepayment and no prepayment) for given no %s judgement is %s' %(y,TN))
         print('[Decision Tree Result]  False Negative (Predict prepayment but no prepayment) for given no %s judgement is %s' %(y,FN))
         print('[Decision Tree Result]  True Positive (Predict prepayment and has prepayment) for given no %s judgement is %s' %(y,TP))
         print('[Decision Tree Result]  False Positive (Predict no prepayment but has prepayment) for given no %s judgement is %s' %(y,FP))
-        print('\n')
+        print('\n')"""
         return df_test
         
-def Logistic_prediction(penalty, df_train, df_test, y, y_pred, predictors, alpha):
-    # fit regression
-    logreg = LogisticRegression(penalty = penalty, C=alpha)
+def Logistic_prediction(alpha, penalty, df_train, df_test, y, y_pred, predictors):
+    logreg = LogisticRegression(penalty = penalty, C=alpha[0])
     logreg.fit(df_train[predictors],df_train[y])
     predicted = logreg.predict(df_test[predictors])
     
@@ -65,34 +65,119 @@ def Logistic_prediction(penalty, df_train, df_test, y, y_pred, predictors, alpha
 
     # Calculate the accuracy
     try:    
-        TN = sum(df_test[y_pred][df_test[y_pred] ==0] == df_test[y][df_test[y_pred] ==0] )/len(df_test[y_pred][df_test[y_pred] ==0])
+        TN = sum(df_test[y_pred][df_test[y_pred] ==0] == df_test[y][df_test[y_pred] ==0] )/\
+            len(df_test[y_pred][df_test[y_pred] ==0])
     except:
-        TN  = 'NaN'
+        #TN  = 'NaN'
+        TN = 0
     try: 
-        FN = sum(df_test[y_pred][df_test[y_pred] ==0] != df_test[y][df_test[y_pred] ==0] )/len(df_test[y_pred][df_test[y_pred] ==0])
+        FN = sum(df_test[y_pred][df_test[y_pred] ==0] != df_test[y][df_test[y_pred] ==0] )/\
+            len(df_test[y_pred][df_test[y_pred] ==0])
     except:
-        FN  = 'NaN' 
+        #FN  = 'NaN' 
+        FN = 0
     try: 
-        TP = sum(df_test[y_pred][df_test[y_pred] ==1] == df_test[y][df_test[y_pred] ==1] )/len(df_test[y_pred][df_test[y_pred] ==1])
+        TP = sum(df_test[y_pred][df_test[y_pred] ==1] == df_test[y][df_test[y_pred] ==1] )/\
+            len(df_test[y_pred][df_test[y_pred] ==1])
     except:
-        TP  = 'NaN'
+        #TP  = 'NaN'
+        TP = 0
     try: 
-        FP = sum(df_test[y_pred][df_test[y_pred] ==1] != df_test[y][df_test[y_pred] ==1] )/len(df_test[y_pred][df_test[y_pred] ==1])
+        FP = sum(df_test[y_pred][df_test[y_pred] ==1] != df_test[y][df_test[y_pred] ==1] )/\
+            len(df_test[y_pred][df_test[y_pred] ==1])
     except:
-        FP  = 'NaN'
-    print('Alpha is %s' %alpha)
-    print('[Logistic Regression Result]  True Negative (Predict no prepayment and no prepayment) for given no %s judgement is %s' %(y,TN))
-    print('[Logistic Regression Result]  False Negative (Predict prepayment but no prepayment) for given no %s judgement is %s' %(y,FN))
-    print('[Logistic Regression Result]  True Positive (Predict prepayment and has prepayment) for given no %s judgement is %s' %(y,TP))
-    print('[Logistic Regressione Result]  False Positive (Predict no prepayment but has prepayment) for given no %s judgement is %s' %(y,FP))    
-    print('\n')    
-    return df_test
+        #FP  = 'NaN'
+        FP = 0
+    """print('Alpha is %s' %alpha)
+    print('[Logistic Regression Result]  True Negative (Predict no prepayment \
+            and no prepayment) for given no %s judgement is %s' %(y,TN))
+    print('[Logistic Regression Result]  False Negative (Predict prepayment \
+            but no prepayment) for given no %s judgement is %s' %(y,FN))
+    print('[Logistic Regression Result]  True Positive (Predict prepayment \
+            and has prepayment) for given no %s judgement is %s' %(y,TP))
+    print('[Logistic Regressione Result]  False Positive (Predict no prepayment \
+            but has prepayment) for given no %s judgement is %s' %(y,FP))    
+    print('\n') """
+    #return df_test
+    return (-1) * (TN + TP)
+
+def Logistic_prediction_1(alpha, penalty, df_train, df_test, y, y_pred, predictors):
+    logreg = LogisticRegression(penalty = penalty, C=alpha[0])
+    logreg.fit(df_train[predictors],df_train[y])
+    predicted = logreg.predict(df_test[predictors])
     
-def rest(loan_df_train, loan_df_test, predictors, target_variable):
+    # Add new prediction into testing dataset
+    df_test[y_pred] = predicted
+
+    # Calculate the accuracy
+    try:    
+        TN = sum(df_test[y_pred][df_test[y_pred] ==0] == df_test[y][df_test[y_pred] ==0] )/\
+            len(df_test[y_pred][df_test[y_pred] ==0])
+    except:
+        #TN  = 'NaN'
+        TN = -1
+        print 
+    try: 
+        FN = sum(df_test[y_pred][df_test[y_pred] ==0] != df_test[y][df_test[y_pred] ==0] )/\
+            len(df_test[y_pred][df_test[y_pred] ==0])
+    except:
+        #FN  = 'NaN' 
+        FN = -1
+    try: 
+        TP = sum(df_test[y_pred][df_test[y_pred] ==1] == df_test[y][df_test[y_pred] ==1] )/\
+            len(df_test[y_pred][df_test[y_pred] ==1])
+    except:
+        #TP  = 'NaN'
+        TP = -1
+    try: 
+        FP = sum(df_test[y_pred][df_test[y_pred] ==1] != df_test[y][df_test[y_pred] ==1] )/\
+            len(df_test[y_pred][df_test[y_pred] ==1])
+    except:
+        #FP  = 'NaN'
+        FP = -1
+    print('Alpha is %s' %alpha)
+    print('[Logistic Regression Result]  True Negative (Predict no prepayment \
+            and no prepayment) for given no %s judgement is %s' %(y,TN))
+    print('[Logistic Regression Result]  False Negative (Predict prepayment \
+            but no prepayment) for given no %s judgement is %s' %(y,FN))
+    print('[Logistic Regression Result]  True Positive (Predict prepayment \
+            and has prepayment) for given no %s judgement is %s' %(y,TP))
+    print('[Logistic Regressione Result]  False Positive (Predict no prepayment \
+            but has prepayment) for given no %s judgement is %s' %(y,FP))    
+    print('\n')
+    return df_test
+
+def Optimize_Logistic(loan_df_train, loan_df_test, new_predictors_log):
+
+    print('####### Logistic Regression #######')
+    # initially ran minimization with larger values, then narrowed to range for quicker results
+    alpha_list = np.arange(0.01, 0.1, 0.005) 
+
+    alpha_best = 0
+    bnds = ((0, None),)
+    methods = ['Nelder-Mead', 'CG','BFGS','L-BFGS-B','TNC','SLSQP']
+    max_result = np.Inf
+    for alpha in alpha_list:
+        result = spo.minimize(Logistic_prediction, alpha, 
+                     args=('l1',loan_df_train, loan_df_test, 'Prepayment', 
+                           'Pred_Prepayment_log', new_predictors_log),
+                     bounds=bnds,
+                     method='SLSQP', 
+                     tol=10e-5)
+
+        if result.fun < max_result:
+            max_result = result.fun
+            alpha_best = result.x
+
+    print ('Best result: ', max_result, '\nalpha:', alpha_best)
+    return alpha
+
+def rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictors_log):
     #Set the different values of alpha to be tested
     C = [1e-4, 1e-3, 5e-2, 1e-2, 0.05, 0.1, 0.5, 1, 2, 5]
 
     #Initialize the dataframe for storing coefficients.
+    # 
     col = ['rss','intercept'] + ['coef_x_%d'%i for i in range(1,12)]
     ind = ['alpha_%.2g'%C[i] for i in range(0,10)]
     coef_matrix_log = pd.DataFrame(index=ind, columns=col)
@@ -118,8 +203,6 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable):
     # pd.options.display.float_format = '{:,.2g}'.format
     # coef_matrix_ridge
 
-
-
     ############ Lasso regression ############
     #Initialize predictors to all 15 powers of x
     predictors=['mortgage_insurance_percentage','original_loan_term','credit_score',
@@ -144,12 +227,6 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable):
         coef_matrix_lasso.iloc[i,] = r.lasso_regression(loan_df_train, 'Prepay Percent', predictors, alpha_lasso[i], models_to_plot)
 
         
-        
-
-    ############ Decision Tree_1 for divide higher than 80% and less then 80% using logistic regression result ############
-    new_predictors_log = ['mortgage_insurance_percentage','original_loan_term',
-                          'credit_score','original_ltv','prepayment_penalty_flag',
-                          'number_of_borrowers']
     # Calculate the Accuracy
     print('####### Two Step Logistic + Decision Tree #######')
     decision_tree(loan_df_train, loan_df_test, new_predictors_log, 'gini', 'big_Prepayment', 
@@ -211,106 +288,19 @@ def rest(loan_df_train, loan_df_test, predictors, target_variable):
     decision_tree(loan_df_train_small, loan_df_test_small_lasso, new_predictors_lasso, 'gini', 
                   'Prepayment', 'Pred_prepayment_ridge')
 
-
-
-
-
-
-
-    '''
-    # Set predictors from ridge result
-    new_predictors_ridge = ['first_time_homebuyer_flag','original_combined_ltv','original_ltv','original_interest_rate','prepayment_penalty_flag']
-    #Assumed you have, X (predictor) and Y (target) for training data set and x_test(predictor) of test_dataset
-    # Create tree object 
-    model_2_ridge = tree.DecisionTreeClassifier(criterion='gini') # for classification, here you can change the algorithm as gini or entropy (information gain) by default it is gini  
-    # model = tree.DecisionTreeRegressor() for regression
-    # Train the model using the training sets and check score
-    model_2_ridge.fit(loan_df_train_small[new_predictors_ridge], loan_df_train_small['Prepayment'])
-    model_2_ridge.score(loan_df_train_small[new_predictors_ridge], loan_df_train_small['Prepayment'])
-    #Predict Output
-    predicted_2_ridge = model_2_ridge.predict(loan_df_test_small_ridge[new_predictors_ridge])
-
-
-    # Calculate the accuracy
-    loan_df_test_small_ridge['Pred_prepayment_ridge'] = predicted_2_ridge
-    accuracy_2_ridge = sum(loan_df_test_small_ridge['Pred_prepayment_ridge'] == loan_df_test_small_ridge['Prepayment'])/len(loan_df_test_small_ridge['Pred_prepayment_ridge'])
-    condi_accuracy_2_ridge = sum(loan_df_test_small_ridge['Pred_prepayment_ridge'][loan_df_test_small_ridge['Pred_prepayment_ridge'] ==1] == loan_df_test_small_ridge['Prepayment'][loan_df_test_small_ridge['Pred_prepayment_ridge'] ==1] )/len(loan_df_test_small_ridge['Pred_prepayment_ridge'][loan_df_test_small_ridge['Pred_prepayment_ridge'] ==1])
-    print('[Ridge regression] Accuracy for judging prepayment or not is %s' %accuracy_2_ridge)
-    print('[Ridge regression] Conditional accuracy for given prepayment judgement is %s' %condi_accuracy_2_ridge)
-    '''
-
-    '''
-    ###### Decision Tree_1 for divide higher than 80% and less then 80% using lasso regression result ######
-    new_predictors_1_lasso = ['first_time_homebuyer_flag','original_ltv','original_interest_rate','prepayment_penalty_flag','number_of_borrowers']
-
-    #Assumed you have, X (predictor) and Y (target) for training data set and x_test(predictor) of test_dataset
-    # Create tree object 
-    model_1_lasso = tree.DecisionTreeClassifier(criterion='gini') # for classification, here you can change the algorithm as gini or entropy (information gain) by default it is gini  
-    # model = tree.DecisionTreeRegressor() for regression
-    # Train the model using the training sets and check score
-    model_1_lasso.fit(loan_df_train[new_predictors_1_lasso], loan_df_train['big_Prepayment'])
-    model_1_lasso.score(loan_df_train[new_predictors_1_lasso], loan_df_train['big_Prepayment'])
-    #Predict Output
-    predicted_1_lasso = model_1_lasso.predict(loan_df_test[new_predictors_1_lasso])
-
-    loan_df_test['Pred_big_prepayment_lasso'] = predicted_1_lasso
-
-    # Calculate the accuracy
-    accuracy_1_lasso = sum(loan_df_test['Pred_big_prepayment_lasso'] == loan_df_test['big_Prepayment'])/len(loan_df_test['Pred_big_prepayment_lasso'])
-    condi_accuracy_1_lasso = sum(loan_df_test['Pred_big_prepayment_lasso'][loan_df_test['Pred_big_prepayment_lasso'] ==0] == loan_df_test['big_Prepayment'][loan_df_test['Pred_big_prepayment_lasso'] ==0] )/len(loan_df_test['Pred_big_prepayment_lasso'][loan_df_test['Pred_big_prepayment_lasso'] ==0])
-
-    print('[Lasso regression] Accuracy for judging big prepayment or not is %s' %accuracy_1_lasso)
-    print('[Lasso regression] Conditional accuracy for given big prepayment judgement is %s' %condi_accuracy_1_lasso)
-
-    # Generate testing dataset which doesn't have big prepayment according to algo_1_ridge
-    loan_df_test_small_lasso = loan_df_test[loan_df_test['Pred_big_prepayment_ridge'] == 0]
-    '''
-
-
-
-
-
-
-
-
-    '''
-
-    ### IF no two step algo, just use whole training set
-    ###### Decision Tree_2 for finding low prepayment rate loan among the group with <80% prepayment percent using ridge regression result ######
-    ### Filter out the prepay percent only with <80% and develop algo_2
-
-
-    #Assumed you have, X (predictor) and Y (target) for training data set and x_test(predictor) of test_dataset
-    # Create tree object 
-    model_2_ridge = tree.DecisionTreeClassifier(criterion='entropy') # for classification, here you can change the algorithm as gini or entropy (information gain) by default it is gini  
-    # model = tree.DecisionTreeRegressor() for regression
-    # Train the model using the training sets and check score
-    model_2_ridge.fit(loan_df_train[new_predictors_ridge], loan_df_train['Prepayment'])
-    model_2_ridge.score(loan_df_train[new_predictors_ridge], loan_df_train['Prepayment'])
-    #Predict Output
-    predicted_2_ridge = model_2_ridge.predict(loan_df_test[new_predictors_ridge])
-
-
-    # Calculate the accuracy
-    loan_df_test['Pred_prepayment_ridge'] = predicted_2_ridge
-    accuracy_2_ridge = sum(loan_df_test['Pred_prepayment_ridge'] == loan_df_test['Prepayment'])/len(loan_df_test['Pred_prepayment_ridge'])
-    condi_accuracy_2_ridge = sum(loan_df_test['Pred_prepayment_ridge'][loan_df_test['Pred_prepayment_ridge'] ==0] == loan_df_test['Prepayment'][loan_df_test['Pred_prepayment_ridge'] ==0] )/len(loan_df_test['Pred_prepayment_ridge'][loan_df_test['Pred_prepayment_ridge'] ==0])
-    print('[Ridge regression] Accuracy for judging prepayment or not is %s' %accuracy_2_ridge)
-    print('[Ridge regression] Conditional accuracy for given prepayment judgement is %s' %condi_accuracy_2_ridge)
-
-
-    '''
-
-
     ############ Logistic regression for predicting low prepayment or high prepayment 5% benchmark ############
     new_predictors_log = ['mortgage_insurance_percentage','original_loan_term','credit_score','original_ltv','prepayment_penalty_flag','number_of_borrowers']
     # Calculate the Accuracy
-    print('####### Logistic Regression #######')
-    alpha_list = [1e-8, 1e-7, 1e-6, 1e-5 ,1e-4, 1e-3, 5e-2, 1e-2, 0.1, 0.5, 1, 2, 5]
 
-    for alpha in alpha_list:
-        Logistic_prediction('l1',loan_df_train, loan_df_test, 'Prepayment', 'Pred_Prepayment_log', new_predictors_log, alpha) 
-        # print(alpha)
+    alpha = Optimize_Logistic(loan_df_train, loan_df_test, new_predictors_log)
+
+    #Logistic_prediction_1(result.x, 'l1',loan_df_train, loan_df_test, 'Prepayment', 
+    #                   'Pred_Prepayment_log', new_predictors_log)
+
+    #for alpha in alpha_list:
+    #    Logistic_prediction(alpha, 'l1',loan_df_train, loan_df_test, 'Prepayment', 
+    #                         'Pred_Prepayment_log', new_predictors_log) 
+    #    # print(alpha)
 
 if __name__=="__main__":
     data_file_path = r'C:\Users\Alex\Desktop\abs_data\\' # modify to own path
@@ -335,7 +325,12 @@ if __name__=="__main__":
                        'original_loan_term','credit_score','first_time_homebuyer_flag',
                        'original_combined_ltv','original_upb','original_ltv',
                        'original_interest_rate','prepayment_penalty_flag',
-                       'number_of_borrowers','Home Price']]
+                       'number_of_borrowers','Home Price']] 
+    ############ Decision Tree_1 for divide higher than 80% and less then 80% 
+    ###          using logistic regression result ############
+    new_predictors_log = ['mortgage_insurance_percentage','original_loan_term',
+                          'credit_score','original_ltv','prepayment_penalty_flag',
+                          'number_of_borrowers']
 
     # Drop all NAs
     loan_df = pd.DataFrame.dropna(loan_df)
@@ -349,4 +344,4 @@ if __name__=="__main__":
 
     loan_df_train, loan_df_test = Add_Prepay_Col_Identifiers(loan_df_train, loan_df_test)
 
-    rest(loan_df_train, loan_df_test, predictors, target_variable)
+    rest(loan_df_train, loan_df_test, predictors, target_variable, new_predictors_log)
